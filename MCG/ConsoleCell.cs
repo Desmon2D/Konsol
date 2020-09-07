@@ -1,31 +1,34 @@
 ﻿using System;
+using System.Drawing;
 
 namespace MCG
 {
 	public readonly struct ConsoleCell : IEquatable<ConsoleCell>
 	{
 		public readonly char Symbol;
-		public readonly ConsoleColor Color;
+		public readonly Color ForegroundColor;
+		public readonly Color BackgroundColor;
 
-		public ConsoleCell(char symbol, ConsoleColor color)
+		public ConsoleCell(char symbol, Color foregroundColor, Color backgroundColor)
 		{
-			Color = color;
 			Symbol = symbol;
+			ForegroundColor = foregroundColor;
+			BackgroundColor = backgroundColor;
 		}
 
 		public override bool Equals(object obj)
 			=> obj is ConsoleCell cell && Equals(cell);
-		
+
 		public bool Equals(ConsoleCell other)
-			=> Color == other.Color && Symbol == other.Symbol;
+			=> Symbol == other.Symbol && ForegroundColor == other.ForegroundColor && BackgroundColor == other.BackgroundColor;
 
 		public override int GetHashCode()
-			=> HashCode.Combine(Color, Symbol);
+			=>  HashCode.Combine(Symbol, ForegroundColor, BackgroundColor);
 
 		public static bool operator ==(ConsoleCell left, ConsoleCell right)
-			=> left.Color == right.Color && left.Symbol == right.Symbol;
+			=> left.Symbol == right.Symbol && left.ForegroundColor == right.ForegroundColor && left.BackgroundColor == right.BackgroundColor;
 
 		public static bool operator !=(ConsoleCell left, ConsoleCell right)
-			=> left.Color != right.Color || left.Symbol != right.Symbol;
+			=> left.Symbol != right.Symbol || left.ForegroundColor != right.ForegroundColor || left.BackgroundColor != right.BackgroundColor;
 	}
 }
