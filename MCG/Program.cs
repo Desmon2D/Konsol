@@ -4,6 +4,14 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 
+/*
+	https://stackoverflow.com/questions/2754518/how-can-i-write-fast-colored-output-to-console
+	https://www.lihaoyi.com/post/BuildyourownCommandLinewithANSIescapecodes.html
+	https://tforgione.fr/posts/ansi-escape-codes/
+	https://notes.burke.libbey.me/ansi-escape-codes/
+	https://commons.wikimedia.org/wiki/File:Xterm_256color_chart.svg
+*/
+
 namespace MCG
 {
 	public static class Program

@@ -75,6 +75,15 @@ namespace MCG
 			Console.Write(GetBackgroundColorCode(color));
 		}
 
+		public static (int x, int y) GetPrevIndex(int x, int y)
+		{
+			if (x == 0)
+				return (Width - 1, y - 1);
+
+			return (x - 1, y);
+
+		}
+
 		public static void Draw(ConsoleDrawMode mode)
 		{
 			if (mode == ConsoleDrawMode.DrawByOne)
@@ -88,31 +97,38 @@ namespace MCG
 							ChangeForegroundColor(_currentBuffer[x, y].ForegroundColor);
 							ChangeBackgroundColor(_currentBuffer[x, y].BackgroundColor);
 							Console.SetCursorPosition(x, y);
-
 							Console.WriteLine(_currentBuffer[x, y].Symbol);
 						}
 					}
 				}
 			}
-
+			
 			else if (mode == ConsoleDrawMode.DrawAll)
 			{
 				var builder = new StringBuilder();
+
+				builder.Append("\x1B[0;0H");
+				//Console.SetCursorPosition(0, 0);
 
 				for (var y = 0; y < Hiegth; y++)
 				{
 					for (var x = 0; x < Width; x++)
 					{
-						builder.Append(GetForegroundColorCode(_currentBuffer[x, y].ForegroundColor));
-						builder.Append(GetBackgroundColorCode(_currentBuffer[x, y].BackgroundColor));
+						var prevIndex = GetPrevIndex(x, y);
+
+						if (x != 0 || y != 0 && _currentBuffer[x, y].ForegroundColor != _currentBuffer[prevIndex.x, prevIndex.y].ForegroundColor)
+							builder.Append(GetForegroundColorCode(_currentBuffer[x, y].ForegroundColor));
+
+						if (x != 0 || y != 0 && _currentBuffer[x, y].BackgroundColor != _currentBuffer[prevIndex.x, prevIndex.y].BackgroundColor)
+							builder.Append(GetBackgroundColorCode(_currentBuffer[x, y].BackgroundColor));
+
 						builder.Append(_currentBuffer[x, y].Symbol);
 					}
 
 					builder.AppendLine(GetBackgroundColorCode(Color.Black));
 				}
 
-				Debug.Write(builder.ToString());
-				Console.SetCursorPosition(0, 0);
+				Console.Write(builder.ToString());
 			}
 
 		}
