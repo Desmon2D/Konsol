@@ -17,8 +17,8 @@ namespace MCG
 
 	public static class ConsoleBuffer
 	{
-		public const int Width = 101;
-		public const int Hiegth = 41;
+		public const int Width = 60;
+		public const int Hiegth = 30;
 
 		private static ConsoleCell[,] _currentBuffer
 			= new ConsoleCell[Width, Hiegth];
@@ -30,6 +30,12 @@ namespace MCG
 		public static void Push(int x, int y, char ch, Color foregroundColor, Color backgroundColor)
 			=> _currentBuffer[x, y] = new ConsoleCell(ch, foregroundColor, backgroundColor);
 
+		public static void Push(int x, int y, string str, Color foregroundColor, Color backgroundColor)
+		{
+			for (var i = 0; i < str.Length && i < Width; i++)
+				_currentBuffer[x + i, y] = new ConsoleCell(str[i], foregroundColor, backgroundColor);
+		}
+
 		private static void Swap<T>(ref T left, ref T rigth)
 		{
 			T temp = left;
@@ -37,10 +43,8 @@ namespace MCG
 			rigth = temp;
 		}
 
-
 		public static void Swap()
 			=> Swap(ref _currentBuffer, ref _prevBuffer);
-
 
 		/*
 			"\x1b[38;2;" + r + ";" + g + ";" + b + "m" - set foreground by r, g, b values <br/>
@@ -75,14 +79,8 @@ namespace MCG
 			Console.Write(GetBackgroundColorCode(color));
 		}
 
-		public static (int x, int y) GetPrevIndex(int x, int y)
-		{
-			if (x == 0)
-				return (Width - 1, y - 1);
-
-			return (x - 1, y);
-
-		}
+		public static string GetCellColorCode(Color foreground, Color background)
+			=> $"\x1b[38;2;{foreground.R};{foreground.G};{foreground.B};48;2;{background.R};{background.G};{background.B}m";
 
 		public static void Draw(ConsoleDrawMode mode)
 		{
@@ -102,26 +100,19 @@ namespace MCG
 					}
 				}
 			}
-			
+
 			else if (mode == ConsoleDrawMode.DrawAll)
 			{
 				var builder = new StringBuilder();
 
 				builder.Append("\x1B[0;0H");
-				//Console.SetCursorPosition(0, 0);
 
 				for (var y = 0; y < Hiegth; y++)
 				{
 					for (var x = 0; x < Width; x++)
 					{
-						var prevIndex = GetPrevIndex(x, y);
-
-						if (x != 0 || y != 0 && _currentBuffer[x, y].ForegroundColor != _currentBuffer[prevIndex.x, prevIndex.y].ForegroundColor)
-							builder.Append(GetForegroundColorCode(_currentBuffer[x, y].ForegroundColor));
-
-						if (x != 0 || y != 0 && _currentBuffer[x, y].BackgroundColor != _currentBuffer[prevIndex.x, prevIndex.y].BackgroundColor)
-							builder.Append(GetBackgroundColorCode(_currentBuffer[x, y].BackgroundColor));
-
+						if (x == 0 || _currentBuffer[x - 1, y].ForegroundColor != _currentBuffer[x, y].ForegroundColor || _currentBuffer[x - 1, y].BackgroundColor != _currentBuffer[x, y].BackgroundColor)
+							builder.Append(GetCellColorCode(_currentBuffer[x, y].ForegroundColor, _currentBuffer[x, y].BackgroundColor));
 						builder.Append(_currentBuffer[x, y].Symbol);
 					}
 

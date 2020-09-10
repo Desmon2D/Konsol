@@ -1,8 +1,13 @@
-﻿using System;
+﻿using Microsoft.Win32.SafeHandles;
+using System;
 using System.Drawing;
+using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+
+using static MCG.NativeMethods;
 
 /*
 	https://stackoverflow.com/questions/2754518/how-can-i-write-fast-colored-output-to-console
@@ -14,160 +19,133 @@ using System.Threading;
 
 namespace MCG
 {
+	static class DisableConsoleQuickEdit
+	{
+		private const uint ENABLE_QUICK_EDIT = 0x0040;
+
+		// STD_INPUT_HANDLE (DWORD): -10 is the standard input device.
+		private const int STD_INPUT_HANDLE = -10;
+
+		[DllImport("kernel32.dll", SetLastError = true)]
+		private static extern IntPtr GetStdHandle(int nStdHandle);
+
+		[DllImport("kernel32.dll")]
+		private static extern bool GetConsoleMode(IntPtr hConsoleHandle, out uint lpMode);
+
+		[DllImport("kernel32.dll")]
+		private static extern bool SetConsoleMode(IntPtr hConsoleHandle, uint dwMode);
+
+		internal static bool Invoke()
+		{
+
+			var consoleHandle = GetStdHandle(STD_INPUT_HANDLE);
+
+			// get current console mode
+			if (!GetConsoleMode(consoleHandle, out uint consoleMode))
+			{
+				// ERROR: Unable to get console mode.
+				return false;
+			}
+
+			// Clear the quick edit bit in the mode flags
+			consoleMode &= ~ENABLE_QUICK_EDIT;
+
+			// set the new mode
+			if (!SetConsoleMode(consoleHandle, consoleMode))
+			{
+				// ERROR: Unable to set console mode
+				return false;
+			}
+
+			return true;
+		}
+	}
+
+
 	public static class Program
 	{
-		public static int playerX = 1;
-		public static int playerY = 1;
+		public const int SC_CLOSE = 0xF060;
+		public const int SC_MINIMIZE = 0xF020;
+		public const int SC_MAXIMIZE = 0xF030;
+		public const int SC_SIZE = 0xF000;
+
+		[DllImport("user32.dll")]
+		public static extern int DeleteMenu(IntPtr hMenu, int nPosition, int wFlags);
+
+		[DllImport("user32.dll")]
+		private static extern IntPtr GetSystemMenu(IntPtr hWnd, bool bRevert);
+
+		[DllImport("kernel32.dll", ExactSpelling = true)]
+		private static extern IntPtr GetConsoleWindow();
+
+		[DllImport("user32.dll")]
+		public static extern bool GetCursorPos(out POINT lpPoint);
+
+		public struct POINT
+		{
+			public int X;
+			public int Y;
+		}
+
+		public static NativeMethods.COORD MousePosition;
+		public static NativeMethods.COORD MouseClickPosition;
 
 		//☺☻♥♦♣♠•◘○◙♂♀♪♫☼►◄↕‼¶§▬↨↑↓→←∟↔▲▼
 		public static void Main(string[] args)
 		{
+			var handle = GetConsoleWindow();
+			var sysMenu = GetSystemMenu(handle, false);
+			
+			if (handle != IntPtr.Zero)
+			{
+				//DeleteMenu(sysMenu, SC_CLOSE, 0x00000000);
+				DeleteMenu(sysMenu, SC_MINIMIZE, 0x00000000);
+				DeleteMenu(sysMenu, SC_MAXIMIZE, 0x00000000);
+				DeleteMenu(sysMenu, SC_SIZE, 0x00000000);
+			}
+			
+			//DisableConsoleQuickEdit.Invoke();
+
+
 			Console.CursorVisible = false;
 			Console.OutputEncoding = Encoding.UTF8;
-			Console.BufferWidth = Console.WindowWidth = ConsoleBuffer.Width;
-			Console.BufferHeight = Console.WindowHeight = ConsoleBuffer.Hiegth + 1;
+			Console.WindowWidth = Console.BufferWidth = Console.WindowWidth = ConsoleBuffer.Width;
+			Console.WindowHeight = Console.BufferHeight = Console.WindowHeight = ConsoleBuffer.Hiegth + 1;
 
-			var map = new bool[ConsoleBuffer.Width, ConsoleBuffer.Hiegth];
+			IntPtr inHandle = GetStdHandle(STD_INPUT_HANDLE);
+			uint mode = 0;
+			GetConsoleMode(inHandle, ref mode);
+			mode &= ~ENABLE_QUICK_EDIT_MODE; //disable
+			mode |= ENABLE_WINDOW_INPUT; //enable (if you want)
+			mode |= ENABLE_MOUSE_INPUT; //enable
+			SetConsoleMode(inHandle, mode);
 
-			bool forward = false;
-			byte deltaRGB = 0;
+			ConsoleListener.MouseEvent += MousePositionChanged;
+			ConsoleListener.Start();
 
 			while (true)
 			{
+				ConsoleBuffer.Swap();
 				ConsoleBuffer.Clear();
 
-				if (deltaRGB >= 100)
-					forward = false;
-				
-				if (deltaRGB <= 30)
-					forward = true;
+				for (var y = 0; y < ConsoleBuffer.Hiegth; y++)
+					for (var x = 0; x < ConsoleBuffer.Width; x++)
+						ConsoleBuffer.Push(x, y, ' ', Color.Empty, Color.FromArgb(x, 0, y));
 
-				if (forward)
-					deltaRGB += 5;
-				else
-					deltaRGB -= 5;
+				//GetCursorPos(out POINT point);
+				ConsoleBuffer.Push(0, 0, MousePosition.X.ToString() + ' ' + MousePosition.Y.ToString(), Color.White, Color.Black);
+				ConsoleBuffer.Push(0, 1, MouseClickPosition.X.ToString() + ' ' + MouseClickPosition.Y.ToString(), Color.White, Color.Black);
 
-				/*
-				for (int x = 0; x < ConsoleBuffer.Width; x++)
-				{
-					for (int y = 0; y < ConsoleBuffer.Hiegth; y++)
-					{
-						var r = (byte)(byte.MaxValue * ((float)x / ConsoleBuffer.Width));
-						var g = (byte)(1.0f / byte.MaxValue * ((float)y / ConsoleBuffer.Hiegth * x / ConsoleBuffer.Width));
-						var b = (byte)(byte.MaxValue * ((float)y / ConsoleBuffer.Hiegth));
-
-						var color = Color.FromArgb(r, g, b);
-
-						ConsoleBuffer.Push(x, y, '.', color, Color.Black);
-					}
-				}*/
-
-				for (int x = 0; x < ConsoleBuffer.Width; x++)
-					for (int y = 0; y < ConsoleBuffer.Hiegth; y++)
-						if(map[x, y])
-							ConsoleBuffer.Push(x, y, 'X', Color.White, Color.Black);
-
-				var splitBilly = BILLY.Split('\n');
-				for (int y = 0; y < splitBilly.Length; y++)
-				{
-					for (int x = 0; x < splitBilly[y].Length; x++)
-					{
-						var r = (byte)(byte.MaxValue * ((float)x / ConsoleBuffer.Width));
-						var g = (byte)(1.0f / byte.MaxValue * ((float)y / ConsoleBuffer.Hiegth * x / ConsoleBuffer.Width));
-						var b = (byte)(byte.MaxValue * ((float)y / ConsoleBuffer.Hiegth));
-
-						var delta = -100 + deltaRGB;
-
-						var foregroundColor = Color.FromArgb(r, g, b);
-						var backgroundColor = Color.FromArgb(Math.Max(0, r + delta), Math.Max(0, g + delta), Math.Max(0, b + delta));
-
-
-						ConsoleBuffer.Push(x, y, splitBilly[y][x], foregroundColor, backgroundColor);
-					}
-				}
-				//ConsoleBuffer.Push(playerX, playerY, '♂', Color.White, Color.Black);
-
-				var str = "♂ GACHI REMIX ♂";
-				for (var i = 0; i < str.Length; i++)
-					ConsoleBuffer.Push(ConsoleBuffer.Width / 2 - str.Length / 2 - 1 + i, 11, str[i], Color.White, Color.Black);
-
-				ConsoleBuffer.Draw(ConsoleDrawMode.DrawAll);
-				ConsoleBuffer.Swap();
-
-				//ExecuteControl(map);
+				ConsoleBuffer.Draw(ConsoleDrawMode.DrawByOne);
 			}
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static bool IsValidPosition(bool[,] map, int x, int y)
-			=> x >= 0 && y >= 0 && x < ConsoleBuffer.Width && y < ConsoleBuffer.Hiegth && !map[x, y];
-
-		private static void ExecuteControl(bool[,] map)
+		private static void MousePositionChanged(NativeMethods.MOUSE_EVENT_RECORD r)
 		{
-			var ch = Console.ReadKey(true).KeyChar;
+			MousePosition = r.dwMousePosition;
 
-			var deltaX = 0;
-			var deltaY = 0;
-
-			if (ch == '1' || ch == '4' || ch == '7')
-				deltaX = -1;
-
-			else if (ch == '3' || ch == '6' || ch == '9')
-				deltaX = 1;
-
-			if (ch == '7' || ch == '8' || ch == '9')
-				deltaY = -1;
-
-			else if (ch == '1' || ch == '2' || ch == '3')
-				deltaY = 1;
-
-			if (IsValidPosition(map, playerX + deltaX, playerY + deltaY))
-			{
-				playerX += deltaX;
-				playerY += deltaY;
-			}
+			if (r.dwButtonState == NativeMethods.MOUSE_EVENT_RECORD.FROM_LEFT_1ST_BUTTON_PRESSED)
+				MouseClickPosition = r.dwMousePosition;
 		}
-	public const string BILLY = @"OOOOOOOOOOOOOOOOOOOO0KNWNKd,.   ..      .    .          .........';oOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-OOOOOOOOOOOOOOOOOOkxONNNXkc..  .                              ....'ckOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-OOOOOOOOOOOOOOOOkdooodkkxl;....    ........                       .,oOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-OOOOOOOOOOOOOOOOkoc:,',;::,'..   ...',''''''............            .oOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-OOOOOOOOOOOOOOOkkd:,'...'',;'....';,;;:ccccccc:;;,,,,'''...          ,xOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-OOOOOOOOOOOO00kddoc;,,',;cloolc;;clllcodddxxkkxdocc:;;,,,''..        .lOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-OOOOOOOOOOOOOkdlc:::;;cclxOKKKOolodxxdxxxOOOOOkkxdooc;;;;,,'...       .dOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-OOOOOO0OO0OOOxoc:::::okxxkO0KXKkddxxxkkk00OkOOOkxdooc::;;;;;,'...     .lOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-OO00000O00OO0kollllloOKOO0000OxddxkOOOkOKKOkkkkxxdollc::;;;;;,'...     :OOOOOOOOOOOOOOOOOOOOOOOOOOOO
-O00000OOO000OocoddooxO0000KK0kkxxO000000KK0Okxkkkxddolc::;;;;;,'....   'x0O0OOOO0OOOOOOOOOOOOOOOOOOO
-O00000000000Ol;:lddxkk0KK00OkOKKKXXXKKKKKKK0kkkOkxxddolcc:;;;::;,'...  .cO000000000000OOOOOO0OOOO000
-000000000000Od;,:lloxkOK0KK0KKXXNNNNXKK0KKK0Okxxxdoolccccc::;;:::;,...  .d0000000000000O000000OOO000
-0000000000000kc'',;cox0KKKXXXXXNNNNNXK0OO000kdlcc:;;,''''''',,;::::,...  :O0000000000000000000000000
-00000000000000d;''';lk0KKKXXXNNNNNXK0Okkxkkkxl;''........',,,,,;;;;;'....,dO000000000000000000000000
-00000000000000Ol'.';cdOKKKXXXXXXKOxolccloooooc:;;;,,'',,;:::::;;;;:;'....;:lk00000000000000000000000
-000000000000000kc'';clk0KXXXKOxoc;...',,;cllccllc:;,'.....'',;;;;:::,. .,c;,ck0000000000000000000000
-0000000000000000k;';:lkKKK0ko:,....''',,;cdxdlclc,........''',,,;;;;;;..;ll:,lO000000000000000000000
-00000000000000000l.',ckKK0dc;,,,,,''...';l0XOdlc:,'...',,;;,,,,;;;::::;..;:c::d000000000000000000000
-00000000000000000O:.':kKK0o:cl:,........:kXNKko:;;;;,,''''''',,;;::::::,.',,;;lO00000000000000000000
-000000000000000000Oc',o0K0dodc,'''''..,lOKXNKkoc:;:;:::;;;,,,,;;;::ccc:,.,,';:ck00000000000000000000
-00000000000000000000d;:xK0kkxdxoc:;;cd0XXKXNX0dl::::cccccccc::;:::ccccc;',::ccoO00000000000000000000
-000000000000000000K0kl:o0KK0KK0OOOOKNWNNXXXNNXOxoc:cooc::::ccccccclllcc:;;clccx000000000000000000000
-000000000000000000K0xdxk0KKKKKXXNNWWNKOkKNXXNKOxocclool::;;,;:clllllllcc:;;:coO000000000000000000000
-0000KK000000000000KKkk0kk00000KKXXXKOdco0XK0Oxollc:::::;;;;,,,;:llllcccc:;:lxO0000000000000000000000
-0000KK00K00000KKKKKK0Okook00O0KKK0Oxl:,;oko:::ccl:;;;,'',',,,,,;:clc::ccc:cx000000000000000000000000
-000KKKKKKKKKK0KKKKKKK00kxkkOO000Okdl:;'':dl'.',;;;,,,,,,,,;;:;;;;;cc:;:::::x000000000000000000000000
-0KKKKKKKKKKKKKKKKKKKKKXXNKOOOOOkxol:;,''lkkdc;,,'''',;:::c:;;,',;;;cc;;::::d0K000KK00000000000000000
-KKKKKKKKKKKKKKKKKKKKKKXNNX0kOOkddoc:,'':dkxdol:;;;;:ccllooc. ..'',;cc;,;:::d0KK00KKK0000000000000000
-KKKKKKKKKKKKKKKKKKKKKKKXXXX0kkdlodl:,',:lc::::::llcldxxxol'..',,,',:c;;;:;:xKKK0KKKKKKK000KKK00KKK00
-KKKKKKKKKKKKKKKKKKKKKKKKKK00Okxlcddc,,,,'...;loodddoooc;'...,;;;,',::;,;;;:xKKKKKKKKKKKK0KKKK000KK0K
-KKKKKKKKKKKKKKKKKKKKKKKKKKKK0kxocldo:;,'...';:ccc::;,'',,,;;:::;,',;;,,;;,:xKKKKKKKKKKK00KKKKKK0KKKK
-KKKKKKKKKKKKKKKKKKKKKKKKKKKKK0xolcodl:,'',cxOOOOkxxdoc::::::::;,'',,,,;;,,;d0KKKKKKKKKKKKKKKKKKKKKKK
-KKKKKKKKKKKKKKKKKKKKKKKKKKKKKK0xlclol:,,,:dkkkxxdolc:;;,,;;:;;,'''',,,,,,;;oOKKKKKKKKKKKKKKKKKKKKKKK
-KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK0xl::::;,,:oxxxdol:;;,''''',,''''',,,,,,,;;;cxKKKKKKKKKKKKKKKKKKKKKKK
-KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK0xc:;,;;;:codxxdolc:;,,,;;;,,,'',,,,,,,;;:::cdOKKKKKKKKKKKKKKKKKKKKK
-KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK0xoc;;;::lodxkOOkkkkxxdddl:;,,,,,,,,,;;;::::;cx0KKKKKKKKKKKKKKKKKKK
-KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKOxdlc:::clodxkkkOkkxolc:;;;,,,''',,,;;;:::::;;lx0KKKKKKKKKKKKKKKKK
-KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKOkxdlc:::cllolcccc:;;,,,,,'''''',,,;;;;:::::;,;cx0KKKKKKKKKKKKKKK
-KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK0Okkxoc:;;,,;;,,''',,,,''''''',,,,,;;;::::::;,,,,:ok0KKKKKKKKKKKK
-KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK0OOkdlc;,,'''''''''',,,,,,,,',',,,,;;;::::::;,,,'',:ldO0KKKKKKKK
-KKKKKKKKKKKKKKKKKKKKKKKKKXKKKKKKKKKKK0Okxdlc:,,'''''''',,,,,,,,,,,,,,,,;;;;:::::;;,,',,,,,:dOKKKKKKK";
 	}
-
 }
