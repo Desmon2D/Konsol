@@ -17,12 +17,13 @@ namespace MCG
 
 	public static class ConsoleBuffer
 	{
-		public const int Width = 60;
-		public const int Hiegth = 30;
+		public const int Width = 80;
+		public const int Hiegth = 40;
 
 		private static ConsoleCell[,] _currentBuffer
-			= new ConsoleCell[Width, Hiegth];
+			= new ConsoleCell[Width, Hiegth + 1];
 
+		//TODO: Заменить на bool[x, y] где сохранять изменявшиеся ячейки
 		private static ConsoleCell[,] _prevBuffer
 			= new ConsoleCell[Width, Hiegth];
 

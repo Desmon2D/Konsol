@@ -64,31 +64,8 @@ namespace MCG
 
 	public static class Program
 	{
-		public const int SC_CLOSE = 0xF060;
-		public const int SC_MINIMIZE = 0xF020;
-		public const int SC_MAXIMIZE = 0xF030;
-		public const int SC_SIZE = 0xF000;
-
-		[DllImport("user32.dll")]
-		public static extern int DeleteMenu(IntPtr hMenu, int nPosition, int wFlags);
-
-		[DllImport("user32.dll")]
-		private static extern IntPtr GetSystemMenu(IntPtr hWnd, bool bRevert);
-
-		[DllImport("kernel32.dll", ExactSpelling = true)]
-		private static extern IntPtr GetConsoleWindow();
-
-		[DllImport("user32.dll")]
-		public static extern bool GetCursorPos(out POINT lpPoint);
-
-		public struct POINT
-		{
-			public int X;
-			public int Y;
-		}
-
-		public static NativeMethods.COORD MousePosition;
-		public static NativeMethods.COORD MouseClickPosition;
+		public static COORD MousePosition;
+		public static COORD MouseClickPosition;
 
 		//☺☻♥♦♣♠•◘○◙♂♀♪♫☼►◄↕‼¶§▬↨↑↓→←∟↔▲▼
 		public static void Main(string[] args)
@@ -121,16 +98,32 @@ namespace MCG
 			SetConsoleMode(inHandle, mode);
 
 			ConsoleListener.MouseEvent += MousePositionChanged;
-			ConsoleListener.Start();
+			
 
 			while (true)
 			{
 				ConsoleBuffer.Swap();
 				ConsoleBuffer.Clear();
+			
 
 				for (var y = 0; y < ConsoleBuffer.Hiegth; y++)
 					for (var x = 0; x < ConsoleBuffer.Width; x++)
 						ConsoleBuffer.Push(x, y, ' ', Color.Empty, Color.FromArgb(x, 0, y));
+
+
+				var hoverMe = "Hover me!";
+				if(MousePosition.Y == ConsoleBuffer.Hiegth / 2 && MousePosition.X >= (int)(ConsoleBuffer.Width / 2.0 - hoverMe.Length / 2.0) && MousePosition.X < (int)(ConsoleBuffer.Width / 2.0 + hoverMe.Length / 2.0))
+					ConsoleBuffer.Push((int)(ConsoleBuffer.Width / 2.0 - hoverMe.Length / 2.0) , ConsoleBuffer.Hiegth / 2, hoverMe, Color.White, Color.Black);
+				else
+					ConsoleBuffer.Push((int)(ConsoleBuffer.Width / 2.0 - hoverMe.Length / 2.0), ConsoleBuffer.Hiegth / 2, hoverMe, Color.Orange, Color.Black);
+
+				var clickMe = "Click me!";
+				if (MouseClickPosition.Y == ConsoleBuffer.Hiegth / 2 + 4 && MouseClickPosition.X >= (int)(ConsoleBuffer.Width / 2.0 - clickMe.Length / 2.0) && MouseClickPosition.X < (int)(ConsoleBuffer.Width / 2.0 + clickMe.Length / 2.0))
+					ConsoleBuffer.Push((int)(ConsoleBuffer.Width / 2.0 - clickMe.Length / 2.0), ConsoleBuffer.Hiegth / 2 + 4, clickMe, Color.White, Color.Black);
+				else
+					ConsoleBuffer.Push((int)(ConsoleBuffer.Width / 2.0 - clickMe.Length / 2.0), ConsoleBuffer.Hiegth / 2 + 4, clickMe, Color.Orange, Color.Black);
+
+				ConsoleListener.Invoke();
 
 				//GetCursorPos(out POINT point);
 				ConsoleBuffer.Push(0, 0, MousePosition.X.ToString() + ' ' + MousePosition.Y.ToString(), Color.White, Color.Black);
@@ -144,7 +137,9 @@ namespace MCG
 		{
 			MousePosition = r.dwMousePosition;
 
-			if (r.dwButtonState == NativeMethods.MOUSE_EVENT_RECORD.FROM_LEFT_1ST_BUTTON_PRESSED)
+			ConsoleBuffer.Push(MousePosition.X, MousePosition.Y, 'X', Color.Orange, Color.Empty);
+
+			if (r.dwButtonState == MOUSE_EVENT_RECORD.FROM_LEFT_1ST_BUTTON_PRESSED)
 				MouseClickPosition = r.dwMousePosition;
 		}
 	}
