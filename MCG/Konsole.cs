@@ -149,15 +149,15 @@ namespace MCG
 				case NativeData.INPUT_RECORD.KEY_EVENT:
 					KeyEvent?.Invoke(new KeyboardEventHandler(eventBuffer.KeyEvent));
 					break;
-				//case NativeData.INPUT_RECORD.WINDOW_BUFFER_SIZE_EVENT:
-				//	WindowBufferSizeEvent?.Invoke(new WindowBufferSizeEventHandler(eventBuffer.WindowBufferSizeEvent));
-				//	break;
-				//case NativeData.INPUT_RECORD.MENU_EVENT:
-				//	MenuEvent?.Invoke(new MenuEventHandler(eventBuffer.MenuEvent));
-				//	break;
-				//case NativeData.INPUT_RECORD.FOCUS_EVENT:
-				//	FocusEvent?.Invoke(new FocusEventHandler(eventBuffer.FocusEvent));
-				//	break;
+				case NativeData.INPUT_RECORD.WINDOW_BUFFER_SIZE_EVENT:
+					WindowBufferSizeEvent?.Invoke(new WindowBufferSizeEventHandler(eventBuffer.WindowBufferSizeEvent));
+					break;
+				case NativeData.INPUT_RECORD.MENU_EVENT:
+					MenuEvent?.Invoke(new MenuEventHandler(eventBuffer.MenuEvent));
+					break;
+				case NativeData.INPUT_RECORD.FOCUS_EVENT:
+					FocusEvent?.Invoke(new FocusEventHandler(eventBuffer.FocusEvent));
+					break;
 			}
 		}
 
