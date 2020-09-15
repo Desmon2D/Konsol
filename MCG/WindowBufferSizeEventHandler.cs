@@ -7,7 +7,7 @@ namespace MCG
 	{
 		public Point NewSize;
 
-		internal WindowBufferSizeEventHandler(NativeData.WINDOW_BUFFER_SIZE_RECORD record)
+		internal WindowBufferSizeEventHandler(WINDOW_BUFFER_SIZE_RECORD record)
 			=> NewSize = new Point(record.dwSize.X, record.dwSize.Y);
 	}
 }

@@ -6,7 +6,7 @@ namespace MCG
 	{
 		public uint Command;
 
-		internal MenuEventHandler(NativeData.MENU_EVENT_RECORD record)
+		internal MenuEventHandler(MENU_EVENT_RECORD record)
 		{
 			Command = record.dwCommandId;
 		}

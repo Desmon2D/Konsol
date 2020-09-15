@@ -1,4 +1,6 @@
-﻿namespace MCG
+﻿using static MCG.NativeDLL;
+
+namespace MCG
 {
 	public class KeyboardEventHandler
 	{
@@ -9,7 +11,7 @@
 		public char UnicodeChar;
 		public ControlKeyState ControlKeyState;
 
-		internal KeyboardEventHandler(NativeDLL.NativeData.KEY_EVENT_RECORD record)
+		internal KeyboardEventHandler(KEY_EVENT_RECORD record)
 		{
 			IsKeyDown = record.bKeyDown;
 			RepeatCount = record.wRepeatCount;

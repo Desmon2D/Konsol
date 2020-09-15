@@ -6,7 +6,7 @@ namespace MCG
 	{
 		public bool InFocus;
 
-		internal FocusEventHandler(NativeData.FOCUS_EVENT_RECORD record)
+		internal FocusEventHandler(FOCUS_EVENT_RECORD record)
 			=> InFocus = record.bSetFocus;
 	}
 }

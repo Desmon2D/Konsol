@@ -12,7 +12,7 @@ namespace MCG
 		public ControlKeyState ControlKeyState;
 		public MouseEventFlag MouseEventFlag;
 
-		internal MouseEventHandler(NativeDLL.NativeData.MOUSE_EVENT_RECORD record)
+		internal MouseEventHandler(NativeDLL.MOUSE_EVENT_RECORD record)
 		{
 			Position = new Point(record.dwMousePosition.X, record.dwMousePosition.Y);
 			ButtonState = (ButtonState)record.dwButtonState;

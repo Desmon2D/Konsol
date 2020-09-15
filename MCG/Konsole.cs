@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using static MCG.NativeDLL;
 
 namespace MCG
@@ -18,74 +19,82 @@ namespace MCG
 		private static ConsoleCell[,] _buffer
 			= new ConsoleCell[BufferHeight, BufferWidth];
 
-		private static readonly Lazy<IntPtr> _stdInputHandler
-			= new Lazy<IntPtr>(() => ConsoleMode.GetStdHandle(ConsoleMode.STD_INPUT_HANDLE));
+		private static bool[,] _changedCells
+			= new bool[BufferHeight, BufferWidth];
 
+		private static readonly Lazy<IntPtr> _stdInputHandler
+			= new Lazy<IntPtr>(() => GetStdHandle(STD_INPUT_HANDLE));
+
+		public static int _bufferWidth = Console.WindowWidth;
 		public static int BufferWidth
 		{
-			get => Console.WindowWidth;
+			get => _bufferWidth;
 			set
 			{
 				_buffer = new ConsoleCell[BufferHeight, value];
-				Console.WindowWidth = Console.BufferWidth = Console.WindowWidth = value;
+				_changedCells = new bool[BufferHeight, value];
+				_bufferWidth = Console.WindowWidth = Console.BufferWidth = Console.WindowWidth = value;
 			}
 		}
 
+		public static int _bufferHeight = Console.WindowHeight;
 		public static int BufferHeight
 		{
 			get => Console.WindowHeight - 1;
 			set
 			{
 				_buffer = new ConsoleCell[value, BufferWidth];
+				_changedCells = new bool[value, BufferWidth];
+				_bufferHeight = value;
 				Console.WindowHeight = Console.BufferHeight = Console.WindowHeight = value + 1;
 			}
 		}
 
 		public static bool ProcessedInputMode
 		{
-			get => GetMode(ConsoleMode.ENABLE_PROCESSED_INPUT);
-			set => SetMode(ConsoleMode.ENABLE_PROCESSED_INPUT, value);
+			get => GetMode(ENABLE_PROCESSED_INPUT);
+			set => SetMode(ENABLE_PROCESSED_INPUT, value);
 		}
 
 		public static bool LineInputMode
 		{
-			get => GetMode(ConsoleMode.ENABLE_LINE_INPUT);
-			set => SetMode(ConsoleMode.ENABLE_LINE_INPUT, value);
+			get => GetMode(ENABLE_LINE_INPUT);
+			set => SetMode(ENABLE_LINE_INPUT, value);
 		}
 
 		public static bool EchoInputMode
 		{
-			get => GetMode(ConsoleMode.ENABLE_ECHO_INPUT);
-			set => SetMode(ConsoleMode.ENABLE_ECHO_INPUT, value);
+			get => GetMode(ENABLE_ECHO_INPUT);
+			set => SetMode(ENABLE_ECHO_INPUT, value);
 		}
 		public static bool WindowInputMode
 		{
-			get => GetMode(ConsoleMode.ENABLE_WINDOW_INPUT);
-			set => SetMode(ConsoleMode.ENABLE_WINDOW_INPUT, value);
+			get => GetMode(ENABLE_WINDOW_INPUT);
+			set => SetMode(ENABLE_WINDOW_INPUT, value);
 		}
 
 		public static bool MouseInputMode
 		{
-			get => GetMode(ConsoleMode.ENABLE_MOUSE_INPUT);
-			set => SetMode(ConsoleMode.ENABLE_MOUSE_INPUT, value);
+			get => GetMode(ENABLE_MOUSE_INPUT);
+			set => SetMode(ENABLE_MOUSE_INPUT, value);
 		}
 
 		public static bool InsertMode
 		{
-			get => GetMode(ConsoleMode.ENABLE_INSERT_MODE);
-			set => SetMode(ConsoleMode.ENABLE_INSERT_MODE, value);
+			get => GetMode(ENABLE_INSERT_MODE);
+			set => SetMode(ENABLE_INSERT_MODE, value);
 		}
 
 		public static bool QuickEditMode
 		{
-			get => GetMode(ConsoleMode.ENABLE_QUICK_EDIT_MODE);
-			set => SetMode(ConsoleMode.ENABLE_QUICK_EDIT_MODE, value);
+			get => GetMode(ENABLE_QUICK_EDIT_MODE);
+			set => SetMode(ENABLE_QUICK_EDIT_MODE, value);
 		}
 
 		public static bool VirtualTerminalInputMode
 		{
-			get => GetMode(ConsoleMode.ENABLE_VIRTUAL_TERMINAL_INPUT);
-			set => SetMode(ConsoleMode.ENABLE_VIRTUAL_TERMINAL_INPUT, value);
+			get => GetMode(ENABLE_VIRTUAL_TERMINAL_INPUT);
+			set => SetMode(ENABLE_VIRTUAL_TERMINAL_INPUT, value);
 		}
 
 		public static bool CursorVisible
@@ -103,61 +112,62 @@ namespace MCG
 		private static void SetMode(uint code, bool enable)
 		{
 			uint mode = 0;
-			ConsoleMode.GetConsoleMode(_stdInputHandler.Value, ref mode);
+			var handler = GetStdHandle(STD_INPUT_HANDLE);
+
+			GetConsoleMode(handler, ref mode);
 
 			if (enable)
 				mode |= code;
 			else
 				mode &= ~code;
 
-			ConsoleMode.SetConsoleMode(_stdInputHandler.Value, mode);
+			SetConsoleMode(handler, mode);
 		}
 
 		private static bool GetMode(uint code)
 		{
 			uint mode = 0;
-			ConsoleMode.GetConsoleMode(_stdInputHandler.Value, ref mode);
-			return (mode & code) != 0;
+			GetConsoleMode(_stdInputHandler.Value, ref mode);
+			return (mode & code) == code;
 		}
 
 		public static void RemoveMenuButton(MenuButton button)
 		{
-			var handle = MenuButtons.GetConsoleWindow();
-			var sysMenu = MenuButtons.GetSystemMenu(handle, false);
+			var handle = GetConsoleWindow();
+			var sysMenu = GetSystemMenu(handle, false);
 
 			if (handle != IntPtr.Zero)
-				MenuButtons.RemoveMenu(sysMenu, (uint)button, 0x00000000);
+				RemoveMenu(sysMenu, (uint)button, 0x00000000);
 		}
 
 		public static void PollEvent()
 		{
-			var eventCount = 0u;
-			var eventBuffer = new NativeData.INPUT_RECORD[10];
-			ConsoleMode.ReadConsoleInput(_stdInputHandler.Value, eventBuffer, (uint)eventBuffer.Length, ref eventCount);
+			uint numRead = 0;
+			INPUT_RECORD[] record = new INPUT_RECORD[1] { default };
+			ReadConsoleInput(GetStdHandle(STD_INPUT_HANDLE), record, 1, ref numRead);
 
-			for (var i = 0; i < eventCount; i++)
-				InvokeMethodByEventType(eventBuffer[i]);
+			InvokeMethodByEventType(record[0]);
 		}
 
-		private static void InvokeMethodByEventType(NativeData.INPUT_RECORD eventBuffer)
+		private static void InvokeMethodByEventType(INPUT_RECORD eventBuffer)
 		{
 			switch (eventBuffer.EventType)
 			{
-				case NativeData.INPUT_RECORD.MOUSE_EVENT:
-					MouseEvent?.Invoke(new MouseEventHandler(eventBuffer.MouseEvent));
-					break;
-				case NativeData.INPUT_RECORD.KEY_EVENT:
+				case INPUT_RECORD.KEY_EVENT:
 					KeyEvent?.Invoke(new KeyboardEventHandler(eventBuffer.KeyEvent));
 					break;
-				case NativeData.INPUT_RECORD.WINDOW_BUFFER_SIZE_EVENT:
+				case INPUT_RECORD.MOUSE_EVENT:
+					MouseEvent?.Invoke(new MouseEventHandler(eventBuffer.MouseEvent));
+					break;
+				case INPUT_RECORD.WINDOW_BUFFER_SIZE_EVENT:
 					WindowBufferSizeEvent?.Invoke(new WindowBufferSizeEventHandler(eventBuffer.WindowBufferSizeEvent));
 					break;
-				case NativeData.INPUT_RECORD.MENU_EVENT:
-					MenuEvent?.Invoke(new MenuEventHandler(eventBuffer.MenuEvent));
-					break;
-				case NativeData.INPUT_RECORD.FOCUS_EVENT:
-					FocusEvent?.Invoke(new FocusEventHandler(eventBuffer.FocusEvent));
-					break;
+				//case INPUT_RECORD.MENU_EVENT:
+				//	MenuEvent?.Invoke(new MenuEventHandler(eventBuffer.MenuEvent));
+				//	break;
+				//case INPUT_RECORD.FOCUS_EVENT:
+				//	FocusEvent?.Invoke(new FocusEventHandler(eventBuffer.FocusEvent));
+				//	break;
 			}
 		}
 
@@ -170,26 +180,57 @@ namespace MCG
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void Push(int x, int y, char ch, Color foreground, Color background)
-			=> _buffer[y, x] = new ConsoleCell(ch, foreground, background);
+		{
+			var cell = new ConsoleCell(ch, foreground, background);
+
+			if (cell != _buffer[y, x])
+			{
+				_buffer[y, x] = cell;
+				_changedCells[y, x] = true;
+			}
+		}
 
 		public static void Push(int x, int y, string str, Color foregroundColor, Color backgroundColor)
 		{
 			for (var i = 0; i < str.Length && i < BufferWidth; i++)
-				_buffer[y, x + i] = new ConsoleCell(str[i], foregroundColor, backgroundColor);
+				Push(x + i, y, str[i], foregroundColor, backgroundColor);
 		}
 
 		public static void ClearBuffer()
 		{
 			for (var y = 0; y < BufferHeight; y++)
 				for (var x = 0; x < BufferWidth; x++)
-					_buffer[y, x] = default;
+					_changedCells[y, x] = false;
 		}
 
-		public static void Draw()
+		public enum DrawMode
+		{
+			DrawAll,
+			DrawByOne
+		}
+
+		public static void Draw(DrawMode drawMode)
+		{
+			switch (drawMode)
+			{
+				case DrawMode.DrawAll:
+					DrawAll();
+					break;
+				case DrawMode.DrawByOne:
+					DrawByOne();
+					break;
+			}
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static string CaretPositionCode(int x, int y)
+			=> $"\x1B[{y};{x}H";
+
+		public static void DrawAll()
 		{
 			var builder = new StringBuilder();
 
-			builder.Append("\x1B[0;0H");
+			builder.Append(CaretPositionCode(0, 0));
 
 			for (var y = 0; y < BufferHeight; y++)
 			{
@@ -204,6 +245,30 @@ namespace MCG
 			}
 
 			Console.Write(builder.ToString());
+		}
+
+
+		public static void DrawByOne()
+		{
+			var builder = new StringBuilder();
+
+			for (var y = 0; y < BufferHeight; y++)
+			{
+				for (int x = 0; x < BufferWidth; x++)
+				{
+					if (_changedCells[y, x])
+					{
+						//builder.Append(CaretPositionCode(x, y));
+						//builder.Append(GetCellColorCode(_buffer[y, x].ForegroundColor, _buffer[y, x].BackgroundColor));
+						//builder.Append(_buffer[y, x].Symbol);
+						Console.SetCursorPosition(x, y);
+						Console.Write(GetCellColorCode(_buffer[y, x].ForegroundColor, _buffer[y, x].BackgroundColor));
+						Console.Write(_buffer[y, x].Symbol);
+					}
+				}
+			}
+
+			//Console.Write(builder.ToString());
 		}
 	}
 }
