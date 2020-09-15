@@ -132,7 +132,7 @@ namespace MCG
 		public static void PollEvent()
 		{
 			var eventCount = 0u;
-			var eventBuffer = new NativeData.INPUT_RECORD[5];
+			var eventBuffer = new NativeData.INPUT_RECORD[10];
 			ConsoleMode.ReadConsoleInput(_stdInputHandler.Value, eventBuffer, (uint)eventBuffer.Length, ref eventCount);
 
 			for (var i = 0; i < eventCount; i++)
@@ -149,15 +149,15 @@ namespace MCG
 				case NativeData.INPUT_RECORD.KEY_EVENT:
 					KeyEvent?.Invoke(new KeyboardEventHandler(eventBuffer.KeyEvent));
 					break;
-				case NativeData.INPUT_RECORD.WINDOW_BUFFER_SIZE_EVENT:
-					WindowBufferSizeEvent?.Invoke(new WindowBufferSizeEventHandler(eventBuffer.WindowBufferSizeEvent));
-					break;
-				case NativeData.INPUT_RECORD.MENU_EVENT:
-					MenuEvent?.Invoke(new MenuEventHandler(eventBuffer.MenuEvent));
-					break;
-				case NativeData.INPUT_RECORD.FOCUS_EVENT:
-					FocusEvent?.Invoke(new FocusEventHandler(eventBuffer.FocusEvent));
-					break;
+				//case NativeData.INPUT_RECORD.WINDOW_BUFFER_SIZE_EVENT:
+				//	WindowBufferSizeEvent?.Invoke(new WindowBufferSizeEventHandler(eventBuffer.WindowBufferSizeEvent));
+				//	break;
+				//case NativeData.INPUT_RECORD.MENU_EVENT:
+				//	MenuEvent?.Invoke(new MenuEventHandler(eventBuffer.MenuEvent));
+				//	break;
+				//case NativeData.INPUT_RECORD.FOCUS_EVENT:
+				//	FocusEvent?.Invoke(new FocusEventHandler(eventBuffer.FocusEvent));
+				//	break;
 			}
 		}
 
@@ -165,7 +165,7 @@ namespace MCG
 			=> $"\x1b[38;2;{color.R};{color.G};{color.B}m";
 		private static string GetBackgroundColorCode(Color color)
 			=> $"\x1b[48;2;{color.R};{color.G};{color.B}m";
-		public static string GetCellColorCode(Color foreground, Color background)
+		private static string GetCellColorCode(Color foreground, Color background)
 			=> $"\x1b[38;2;{foreground.R};{foreground.G};{foreground.B};48;2;{background.R};{background.G};{background.B}m";
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
