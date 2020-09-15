@@ -16,6 +16,8 @@ namespace MCG
 
 			[DllImport("user32.dll")]
 			internal static extern int DeleteMenu(IntPtr hMenu, int nPosition, int wFlags);
+			[DllImport("user32.dll")]
+			internal static extern int RemoveMenu(IntPtr hMenu, uint nPosition, uint wFlags);
 
 			[DllImport("user32.dll")]
 			internal static extern IntPtr GetSystemMenu(IntPtr hWnd, bool bRevert);
@@ -32,17 +34,22 @@ namespace MCG
 			[DllImport("kernel32.dll")]
 			public static extern IntPtr GetStdHandle(uint nStdHandle);
 
-
+			public const uint ENABLE_PROCESSED_INPUT = 0x0001;
+			public const uint ENABLE_LINE_INPUT = 0x0002;
+			public const uint ENABLE_ECHO_INPUT = 0x0004;
+			public const uint ENABLE_WINDOW_INPUT = 0x0008;
+			public const uint ENABLE_MOUSE_INPUT = 0x0010;
+			public const uint ENABLE_INSERT_MODE = 0x0020;
+			public const uint ENABLE_QUICK_EDIT_MODE = 0x0040;
+			public const uint ENABLE_VIRTUAL_TERMINAL_INPUT = 0x0200;
 			[DllImport("kernel32.dll")]
 			public static extern bool GetConsoleMode(IntPtr hConsoleInput, ref uint lpMode);
-
 			[DllImport("kernel32.dll")]
 			public static extern bool SetConsoleMode(IntPtr hConsoleInput, uint dwMode);
 
 
 			[DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
 			public static extern bool ReadConsoleInput(IntPtr hConsoleInput, [Out] NativeData.INPUT_RECORD[] lpBuffer, uint nLength, ref uint lpNumberOfEventsRead);
-
 			[DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
 			public static extern bool WriteConsoleInput(IntPtr hConsoleInput, NativeData.INPUT_RECORD[] lpBuffer, uint nLength, ref uint lpNumberOfEventsWritten);
 		}
