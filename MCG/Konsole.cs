@@ -10,7 +10,6 @@ namespace MCG
 {
 	public static class Konsole
 	{
-		public static event Action<FocusEventHandler> FocusEvent;
 		public static event Action<KeyboardEventHandler> KeyEvent;
 		public static event Action<MenuEventHandler> MenuEvent;
 		public static event Action<MouseEventHandler> MouseEvent;
@@ -142,11 +141,13 @@ namespace MCG
 
 		public static void PollEvent()
 		{
-			uint numRead = 0;
-			INPUT_RECORD[] record = new INPUT_RECORD[1] { default };
-			ReadConsoleInput(GetStdHandle(STD_INPUT_HANDLE), record, 1, ref numRead);
+			const uint countToRead = 5;
+			var eventCountRed = 0u;
+			var buffer = new INPUT_RECORD[countToRead];
+			ReadConsoleInput(GetStdHandle(STD_INPUT_HANDLE), buffer, countToRead, ref eventCountRed);
 
-			InvokeMethodByEventType(record[0]);
+			for (var i = 0; i < countToRead; i++)
+				InvokeMethodByEventType(buffer[i]);
 		}
 
 		private static void InvokeMethodByEventType(INPUT_RECORD eventBuffer)
@@ -162,12 +163,9 @@ namespace MCG
 				case INPUT_RECORD.WINDOW_BUFFER_SIZE_EVENT:
 					WindowBufferSizeEvent?.Invoke(new WindowBufferSizeEventHandler(eventBuffer.WindowBufferSizeEvent));
 					break;
-				//case INPUT_RECORD.MENU_EVENT:
-				//	MenuEvent?.Invoke(new MenuEventHandler(eventBuffer.MenuEvent));
-				//	break;
-				//case INPUT_RECORD.FOCUS_EVENT:
-				//	FocusEvent?.Invoke(new FocusEventHandler(eventBuffer.FocusEvent));
-				//	break;
+				case INPUT_RECORD.MENU_EVENT:
+					MenuEvent?.Invoke(new MenuEventHandler(eventBuffer.MenuEvent));
+					break;
 			}
 		}
 
@@ -250,7 +248,7 @@ namespace MCG
 
 		public static void DrawByOne()
 		{
-			var builder = new StringBuilder();
+			//var builder = new StringBuilder();
 
 			for (var y = 0; y < BufferHeight; y++)
 			{

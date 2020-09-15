@@ -46,11 +46,12 @@ namespace MCG
 			while (true)
 			{
 				Konsole.ClearBuffer();
+				
+				var events = Task.Run(Konsole.PollEvent);
 
 				for (var y = 0; y < Konsole.BufferHeight; y++)
 					for (var x = 0; x < Konsole.BufferWidth; x++)
 						Konsole.Push(x, y, ' ', Color.Empty, Color.FromArgb(x, 0, y));
-
 
 				var hoverMe = "Hover me!";
 				if (MousePosition.Y == Konsole.BufferHeight / 2 && MousePosition.X >= (int)(Konsole.BufferWidth / 2.0 - hoverMe.Length / 2.0) && MousePosition.X < (int)(Konsole.BufferWidth / 2.0 + hoverMe.Length / 2.0))
@@ -64,10 +65,10 @@ namespace MCG
 				else
 					Konsole.Push((int)(Konsole.BufferWidth / 2.0 - clickMe.Length / 2.0), Konsole.BufferHeight / 2 + 4, clickMe, Color.Orange, Color.Black);
 
-				Konsole.PollEvent();
-
 				Konsole.Push(0, 5, MousePosition.X.ToString() + ' ' + MousePosition.Y.ToString(), Color.White, Color.Black);
 				Konsole.Push(0, 7, MouseClickPosition.X.ToString() + ' ' + MouseClickPosition.Y.ToString(), Color.White, Color.Black);
+
+				events.Wait();
 
 				Konsole.Draw(Konsole.DrawMode.DrawByOne);
 			}

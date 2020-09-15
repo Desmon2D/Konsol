@@ -7,7 +7,6 @@ namespace MCG
 {
 	internal static class NativeDLL
 	{
-		//Buttons
 		public const int SC_SIZE = 0xF000;
 		public const int SC_MINIMIZE = 0xF020;
 		public const int SC_MAXIMIZE = 0xF030;
@@ -80,15 +79,15 @@ namespace MCG
 			[FieldOffset(10)]
 			public byte AsciiChar;
 
-			public const int CAPSLOCK_ON = 0x0080,
-				ENHANCED_KEY = 0x0100,
-				LEFT_ALT_PRESSED = 0x0002,
-				LEFT_CTRL_PRESSED = 0x0008,
-				NUMLOCK_ON = 0x0020,
-				RIGHT_ALT_PRESSED = 0x0001,
-				RIGHT_CTRL_PRESSED = 0x0004,
-				SCROLLLOCK_ON = 0x0040,
-				SHIFT_PRESSED = 0x0010;
+			public const uint CAPSLOCK_ON = 0x0080;
+			public const uint ENHANCED_KEY = 0x0100;
+			public const uint LEFT_ALT_PRESSED = 0x0002;
+			public const uint LEFT_CTRL_PRESSED = 0x0008;
+			public const uint NUMLOCK_ON = 0x0020;
+			public const uint RIGHT_ALT_PRESSED = 0x0001;
+			public const uint RIGHT_CTRL_PRESSED = 0x0004;
+			public const uint SCROLLLOCK_ON = 0x0040;
+			public const uint SHIFT_PRESSED = 0x0010;
 			[FieldOffset(12)]
 			public uint dwControlKeyState;
 		}
@@ -97,28 +96,28 @@ namespace MCG
 		{
 			public COORD dwMousePosition;
 
-			public const uint FROM_LEFT_1ST_BUTTON_PRESSED = 0x0001,
-				FROM_LEFT_2ND_BUTTON_PRESSED = 0x0004,
-				FROM_LEFT_3RD_BUTTON_PRESSED = 0x0008,
-				FROM_LEFT_4TH_BUTTON_PRESSED = 0x0010,
-				RIGHTMOST_BUTTON_PRESSED = 0x0002;
+			public const uint FROM_LEFT_1ST_BUTTON_PRESSED = 0x0001;
+			public const uint FROM_LEFT_2ND_BUTTON_PRESSED = 0x0004;
+			public const uint FROM_LEFT_3RD_BUTTON_PRESSED = 0x0008;
+			public const uint FROM_LEFT_4TH_BUTTON_PRESSED = 0x0010;
+			public const uint RIGHTMOST_BUTTON_PRESSED = 0x0002;
 			public uint dwButtonState;
 
-			public const int CAPSLOCK_ON = 0x0080,
-				ENHANCED_KEY = 0x0100,
-				LEFT_ALT_PRESSED = 0x0002,
-				LEFT_CTRL_PRESSED = 0x0008,
-				NUMLOCK_ON = 0x0020,
-				RIGHT_ALT_PRESSED = 0x0001,
-				RIGHT_CTRL_PRESSED = 0x0004,
-				SCROLLLOCK_ON = 0x0040,
-				SHIFT_PRESSED = 0x0010;
+			public const uint CAPSLOCK_ON = 0x0080;
+			public const uint ENHANCED_KEY = 0x0100;
+			public const uint LEFT_ALT_PRESSED = 0x0002;
+			public const uint LEFT_CTRL_PRESSED = 0x0008;
+			public const uint NUMLOCK_ON = 0x0020;
+			public const uint RIGHT_ALT_PRESSED = 0x0001;
+			public const uint RIGHT_CTRL_PRESSED = 0x0004;
+			public const uint SCROLLLOCK_ON = 0x0040;
+			public const uint SHIFT_PRESSED = 0x0010;
 			public uint dwControlKeyState;
 
-			public const int DOUBLE_CLICK = 0x0002,
-				MOUSE_HWHEELED = 0x0008,
-				MOUSE_MOVED = 0x0001,
-				MOUSE_WHEELED = 0x0004;
+			public const uint DOUBLE_CLICK = 0x0002;
+			public const uint MOUSE_HWHEELED = 0x0008;
+			public const uint MOUSE_MOVED = 0x0001;
+			public const uint MOUSE_WHEELED = 0x0004;
 			public uint dwEventFlags;
 		}
 
@@ -132,35 +131,24 @@ namespace MCG
 			public uint dwCommandId;
 		}
 
-		public struct FOCUS_EVENT_RECORD
-		{
-			public bool bSetFocus;
-		}
-
-		/// <summary>
-		/// https://docs.microsoft.com/en-gb/windows/console/input-record-str
-		/// </summary>
 		[StructLayout(LayoutKind.Explicit)]
 		public struct INPUT_RECORD
 		{
 			public const ushort KEY_EVENT = 0x0001;
 			public const ushort MOUSE_EVENT = 0x0002;
 			public const ushort WINDOW_BUFFER_SIZE_EVENT = 0x0004;
-			//public const ushort MENU_EVENT = 0x0008;
-			//public const ushort FOCUS_EVENT = 0x0010;
-
+			public const ushort MENU_EVENT = 0x0008;
 			[FieldOffset(0)]
 			public ushort EventType;
+
 			[FieldOffset(4)]
 			public KEY_EVENT_RECORD KeyEvent;
 			[FieldOffset(4)]
 			public MOUSE_EVENT_RECORD MouseEvent;
 			[FieldOffset(4)]
 			public WINDOW_BUFFER_SIZE_RECORD WindowBufferSizeEvent;
-			//[FieldOffset(4)]
-			//public MENU_EVENT_RECORD MenuEvent;
-			//[FieldOffset(4)]
-			//public FOCUS_EVENT_RECORD FocusEvent;
-		}
+			[FieldOffset(4)]
+			public MENU_EVENT_RECORD MenuEvent;
+		};
 	}
 }
