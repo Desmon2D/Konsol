@@ -24,6 +24,7 @@ namespace MCG
 	{
 		public static Point MousePosition;
 		public static Point MouseClickPosition;
+		public static ConsoleCell[,] ConsoleBackground;
 
 		public static void Main(string[] args)
 		{
@@ -31,57 +32,58 @@ namespace MCG
 			Konsole.QuickEditMode = false;
 			Konsole.MouseInputMode = true;
 			Konsole.WindowInputMode = true;
-			Konsole.BufferWidth = 100;
-			Konsole.BufferHeight = 35;
+			Konsole.BufferWidth = 150;
+			Konsole.BufferHeight = 45;
+
+			ConsoleBackground = new ConsoleCell[Konsole.BufferWidth, Konsole.BufferHeight];
+			for (byte y = 0; y < Konsole.BufferHeight; y++)
+				for (byte x = 0; x < Konsole.BufferWidth; x++)
+					ConsoleBackground[x, y] = new ConsoleCell(' ', new Color(0), new Color(x, 0, y));
 
 			Konsole.Encoding = Encoding.UTF8;
-			//Konsole.RemoveMenuButton(MenuButton.MaximizeButton);
-			//Konsole.RemoveMenuButton(MenuButton.MinimizeButton);
-			//Konsole.RemoveMenuButton(MenuButton.SizeButton);
+			Konsole.RemoveMenuButton(MenuButton.MaximizeButton);
+			Konsole.RemoveMenuButton(MenuButton.MinimizeButton);
+			Konsole.RemoveMenuButton(MenuButton.SizeButton);
 
 			
 			Konsole.MouseEvent += MousePositionChanged;
 
 
 			while (true)
-			{
-				Konsole.ClearBuffer();
-				
-				var events = Task.Run(Konsole.PollEvent);
-
-				for (var y = 0; y < Konsole.BufferHeight; y++)
-					for (var x = 0; x < Konsole.BufferWidth; x++)
-						Konsole.Push(x, y, ' ', Color.Empty, Color.FromArgb(x, 0, y));
-
-				var hoverMe = "Hover me!";
-				if (MousePosition.Y == Konsole.BufferHeight / 2 && MousePosition.X >= (int)(Konsole.BufferWidth / 2.0 - hoverMe.Length / 2.0) && MousePosition.X < (int)(Konsole.BufferWidth / 2.0 + hoverMe.Length / 2.0))
-					Konsole.Push((int)(Konsole.BufferWidth / 2.0 - hoverMe.Length / 2.0), Konsole.BufferHeight / 2, hoverMe, Color.White, Color.Black);
-				else
-					Konsole.Push((int)(Konsole.BufferWidth / 2.0 - hoverMe.Length / 2.0), Konsole.BufferHeight / 2, hoverMe, Color.Orange, Color.Black);
-
-				var clickMe = "Click me!";
-				if (MouseClickPosition.Y == Konsole.BufferHeight / 2 + 4 && MouseClickPosition.X >= (int)(Konsole.BufferWidth / 2.0 - clickMe.Length / 2.0) && MouseClickPosition.X < (int)(Konsole.BufferWidth / 2.0 + clickMe.Length / 2.0))
-					Konsole.Push((int)(Konsole.BufferWidth / 2.0 - clickMe.Length / 2.0), Konsole.BufferHeight / 2 + 4, clickMe, Color.White, Color.Black);
-				else
-					Konsole.Push((int)(Konsole.BufferWidth / 2.0 - clickMe.Length / 2.0), Konsole.BufferHeight / 2 + 4, clickMe, Color.Orange, Color.Black);
-
-				Konsole.Push(0, 5, MousePosition.X.ToString() + ' ' + MousePosition.Y.ToString(), Color.White, Color.Black);
-				Konsole.Push(0, 7, MouseClickPosition.X.ToString() + ' ' + MouseClickPosition.Y.ToString(), Color.White, Color.Black);
-
-				events.Wait();
-
-				Konsole.Draw(Konsole.DrawMode.DrawByOne);
-			}
+				Konsole.PollEvent();
 		}
 
 		private static void MousePositionChanged(MouseEventHandler e)
 		{
 			MousePosition = e.Position;
 
-			Konsole.Push(MousePosition.X, MousePosition.Y, 'X', Color.Orange, Color.Empty);
-
 			if (e.ButtonState == ButtonState.FromLeftFirstButton)
 				MouseClickPosition = e.Position;
+
+			//////////////////////////////////////
+			for (byte y = 0; y < Konsole.BufferHeight; y++)
+				for (byte x = 0; x < Konsole.BufferWidth; x++)
+					Konsole.Push(x, y, ConsoleBackground[x, y]);
+
+
+			var hoverMe = "Hover me!";
+			if (MousePosition.Y == Konsole.BufferHeight / 2 && MousePosition.X >= (int)(Konsole.BufferWidth / 2.0 - hoverMe.Length / 2.0) && MousePosition.X < (int)(Konsole.BufferWidth / 2.0 + hoverMe.Length / 2.0))
+				Konsole.Push((int)(Konsole.BufferWidth / 2.0 - hoverMe.Length / 2.0), Konsole.BufferHeight / 2, hoverMe, Color.White, Color.Black);
+			else
+				Konsole.Push((int)(Konsole.BufferWidth / 2.0 - hoverMe.Length / 2.0), Konsole.BufferHeight / 2, hoverMe, Color.Orange, Color.Black);
+
+			var clickMe = "Click me!";
+			if (MouseClickPosition.Y == Konsole.BufferHeight / 2 + 4 && MouseClickPosition.X >= (int)(Konsole.BufferWidth / 2.0 - clickMe.Length / 2.0) && MouseClickPosition.X < (int)(Konsole.BufferWidth / 2.0 + clickMe.Length / 2.0))
+				Konsole.Push((int)(Konsole.BufferWidth / 2.0 - clickMe.Length / 2.0), Konsole.BufferHeight / 2 + 4, clickMe, Color.White, Color.Black);
+			else
+				Konsole.Push((int)(Konsole.BufferWidth / 2.0 - clickMe.Length / 2.0), Konsole.BufferHeight / 2 + 4, clickMe, Color.Orange, Color.Black);
+
+			Konsole.Push(MousePosition.X, MousePosition.Y - 2, MousePosition.X.ToString() + ' ' + MousePosition.Y.ToString(), Color.White, Color.Black);
+			Konsole.Push(0, 1, MouseClickPosition.X.ToString() + ' ' + MouseClickPosition.Y.ToString(), Color.White, Color.Black);
+
+			Konsole.Push(MousePosition.X, MousePosition.Y, new ConsoleCell('X', Color.Orange, Color.Black));
+
+			Konsole.Draw(Konsole.DrawMode.DrawOnlyChanged);
 		}
 	}
 }

@@ -10,43 +10,59 @@ namespace MCG
 {
 	public static class Konsole
 	{
+		static Konsole()
+		{
+			_bufferWidth = Console.WindowWidth;
+			_bufferHeight = Console.WindowHeight;
+
+			ResizeBuffer();
+			_stdInputHandler = GetStdHandle(STD_INPUT_HANDLE);
+		}
+
 		public static event Action<KeyboardEventHandler> KeyEvent;
 		public static event Action<MenuEventHandler> MenuEvent;
 		public static event Action<MouseEventHandler> MouseEvent;
 		public static event Action<WindowBufferSizeEventHandler> WindowBufferSizeEvent;
 
-		private static ConsoleCell[,] _buffer
-			= new ConsoleCell[BufferHeight, BufferWidth];
+		private static ConsoleCell[][] _currentBuffer;
+		private static ConsoleCell[][] _prevBuffer;
+		private static readonly IntPtr _stdInputHandler;
 
-		private static bool[,] _changedCells
-			= new bool[BufferHeight, BufferWidth];
 
-		private static readonly Lazy<IntPtr> _stdInputHandler
-			= new Lazy<IntPtr>(() => GetStdHandle(STD_INPUT_HANDLE));
-
-		public static int _bufferWidth = Console.WindowWidth;
+		public static int _bufferWidth;
 		public static int BufferWidth
 		{
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
 			get => _bufferWidth;
 			set
 			{
-				_buffer = new ConsoleCell[BufferHeight, value];
-				_changedCells = new bool[BufferHeight, value];
 				_bufferWidth = Console.WindowWidth = Console.BufferWidth = Console.WindowWidth = value;
+				ResizeBuffer();
 			}
 		}
 
-		public static int _bufferHeight = Console.WindowHeight;
+		public static int _bufferHeight;
 		public static int BufferHeight
 		{
-			get => Console.WindowHeight - 1;
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			get => _bufferHeight;
 			set
 			{
-				_buffer = new ConsoleCell[value, BufferWidth];
-				_changedCells = new bool[value, BufferWidth];
 				_bufferHeight = value;
 				Console.WindowHeight = Console.BufferHeight = Console.WindowHeight = value + 1;
+				ResizeBuffer();
 			}
+		}
+
+		private static void ResizeBuffer()
+		{
+			_currentBuffer = new ConsoleCell[_bufferHeight][];
+			for (var i = 0; i < _currentBuffer.Length; i++)
+				_currentBuffer[i] = new ConsoleCell[_bufferWidth];
+
+			_prevBuffer = new ConsoleCell[_bufferHeight][];
+			for (var i = 0; i < _prevBuffer.Length; i++)
+				_prevBuffer[i] = new ConsoleCell[_bufferWidth];
 		}
 
 		public static bool ProcessedInputMode
@@ -126,7 +142,7 @@ namespace MCG
 		private static bool GetMode(uint code)
 		{
 			uint mode = 0;
-			GetConsoleMode(_stdInputHandler.Value, ref mode);
+			GetConsoleMode(_stdInputHandler, ref mode);
 			return (mode & code) == code;
 		}
 
@@ -141,13 +157,13 @@ namespace MCG
 
 		public static void PollEvent()
 		{
-			const uint countToRead = 5;
+			const uint countToRead = 1;
 			var eventCountRed = 0u;
 			var buffer = new INPUT_RECORD[countToRead];
 			ReadConsoleInput(GetStdHandle(STD_INPUT_HANDLE), buffer, countToRead, ref eventCountRed);
 
-			for (var i = 0; i < countToRead; i++)
-				InvokeMethodByEventType(buffer[i]);
+			//for (var i = 0; i < countToRead; i++)
+			InvokeMethodByEventType(buffer[0]);
 		}
 
 		private static void InvokeMethodByEventType(INPUT_RECORD eventBuffer)
@@ -170,41 +186,33 @@ namespace MCG
 		}
 
 		private static string GetForegroundColorCode(Color color)
-			=> $"\x1b[38;2;{color.R};{color.G};{color.B}m";
+			=> $"\x1b[38;2;{(color.RGB >> 16) & 0xFF};{(color.RGB >> 8) & 0xFF};{color.RGB & 0xFF}m";
 		private static string GetBackgroundColorCode(Color color)
-			=> $"\x1b[48;2;{color.R};{color.G};{color.B}m";
+			=> $"\x1b[48;2;{(color.RGB >> 16) & 0xFF};{(color.RGB >> 8) & 0xFF};{color.RGB & 0xFF}m";
 		private static string GetCellColorCode(Color foreground, Color background)
-			=> $"\x1b[38;2;{foreground.R};{foreground.G};{foreground.B};48;2;{background.R};{background.G};{background.B}m";
+			=> $"\x1b[38;2;{(foreground.RGB >> 16) & 0xFF};{(foreground.RGB >> 8) & 0xFF};{foreground.RGB & 0xFF};48;2;{(background.RGB >> 16) & 0xFF};{(background.RGB >> 8) & 0xFF};{background.RGB & 0xFF}m";
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void Push(int x, int y, char ch, Color foreground, Color background)
-		{
-			var cell = new ConsoleCell(ch, foreground, background);
-
-			if (cell != _buffer[y, x])
-			{
-				_buffer[y, x] = cell;
-				_changedCells[y, x] = true;
-			}
-		}
+		public static void Push(int x, int y, in ConsoleCell cell)
+			=> _currentBuffer[y][x] = cell;
 
 		public static void Push(int x, int y, string str, Color foregroundColor, Color backgroundColor)
 		{
-			for (var i = 0; i < str.Length && i < BufferWidth; i++)
-				Push(x + i, y, str[i], foregroundColor, backgroundColor);
+			for (var i = 0; i < str.Length && i < _bufferWidth; i++)
+				Push(x + i, y, new ConsoleCell(str[i], foregroundColor, backgroundColor));
 		}
 
-		public static void ClearBuffer()
+		private static void Swap<T>(ref T a, ref T b)
 		{
-			for (var y = 0; y < BufferHeight; y++)
-				for (var x = 0; x < BufferWidth; x++)
-					_changedCells[y, x] = false;
+			var temp = a;
+			a = b;
+			b = temp;
 		}
 
 		public enum DrawMode
 		{
 			DrawAll,
-			DrawByOne
+			DrawOnlyChanged
 		}
 
 		public static void Draw(DrawMode drawMode)
@@ -214,15 +222,17 @@ namespace MCG
 				case DrawMode.DrawAll:
 					DrawAll();
 					break;
-				case DrawMode.DrawByOne:
-					DrawByOne();
+				case DrawMode.DrawOnlyChanged:
+					DrawOnlyChanged();
 					break;
 			}
+
+			Swap(ref _currentBuffer, ref _prevBuffer);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static string CaretPositionCode(int x, int y)
-			=> $"\x1B[{y};{x}H";
+			=> $"\x1B[{y + 1};{x + 1}H";
 
 		public static void DrawAll()
 		{
@@ -230,43 +240,42 @@ namespace MCG
 
 			builder.Append(CaretPositionCode(0, 0));
 
-			for (var y = 0; y < BufferHeight; y++)
+			for (int y = 0; y < _bufferHeight; y++)
 			{
-				for (var x = 0; x < BufferWidth; x++)
+				for (int x = 0; x < _bufferWidth; x++)
 				{
-					if (x == 0 || _buffer[y, x - 1].ForegroundColor != _buffer[y, x].ForegroundColor || _buffer[y, x - 1].BackgroundColor != _buffer[y, x].BackgroundColor)
-						builder.Append(GetCellColorCode(_buffer[y, x].ForegroundColor, _buffer[y, x].BackgroundColor));
-					builder.Append(_buffer[y, x].Symbol);
-				}
+					if (x == 0 || _currentBuffer[y][x].ForegroundColor != _currentBuffer[y][x - 1].ForegroundColor || _currentBuffer[y][x].BackgroundColor != _currentBuffer[y][x - 1].BackgroundColor)
+						builder.Append(GetCellColorCode(_currentBuffer[y][x].ForegroundColor, _currentBuffer[y][x].BackgroundColor));
 
-				builder.AppendLine(/*GetBackgroundColorCode(Color.Black)*/);
+					builder.Append(_currentBuffer[y][x].Symbol);
+				}
 			}
+
+			builder.AppendLine();
 
 			Console.Write(builder.ToString());
 		}
 
 
-		public static void DrawByOne()
+		public static void DrawOnlyChanged()
 		{
-			//var builder = new StringBuilder();
 
-			for (var y = 0; y < BufferHeight; y++)
+			var builder = new StringBuilder();
+
+			for (int y = 0; y < _bufferHeight; y++)
 			{
-				for (int x = 0; x < BufferWidth; x++)
+				for (int x = 0; x < _bufferWidth; x++)
 				{
-					if (_changedCells[y, x])
+					if (_currentBuffer[y][x] != _prevBuffer[y][x])
 					{
-						//builder.Append(CaretPositionCode(x, y));
-						//builder.Append(GetCellColorCode(_buffer[y, x].ForegroundColor, _buffer[y, x].BackgroundColor));
-						//builder.Append(_buffer[y, x].Symbol);
-						Console.SetCursorPosition(x, y);
-						Console.Write(GetCellColorCode(_buffer[y, x].ForegroundColor, _buffer[y, x].BackgroundColor));
-						Console.Write(_buffer[y, x].Symbol);
+						builder.Append(CaretPositionCode(x, y));
+						builder.Append(GetCellColorCode(_currentBuffer[y][x].ForegroundColor, _currentBuffer[y][x].BackgroundColor));
+						builder.Append(_currentBuffer[y][x].Symbol);
 					}
 				}
 			}
 
-			//Console.Write(builder.ToString());
+			Console.Write(builder.ToString());
 		}
 	}
 }
