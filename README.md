@@ -1,3 +1,3 @@
-# FastUnbelievableColoredKonsol or FUCK
+# Fuck - Fast Unbelievable Colored Konsol
 
-FUCK is a console aplication framwork
+Fuck is a console aplication framework
