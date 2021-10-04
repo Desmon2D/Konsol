@@ -1,1 +1,1 @@
-# Fast Unbelievable Colored Konsol
+# Konsol
